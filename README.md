@@ -1,5 +1,4 @@
-# feature-menu-layer
+# Better Weather App
 
-![screenshot](feature-menu-layer-screenshot.png)
 
-This example shows how to use the [`MenuLayer`](https://developer.getpebble.com/docs/c/group___menu_layer.html).
+A better weather app for the Pebble and Pebble Time platforms.
