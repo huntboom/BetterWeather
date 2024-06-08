@@ -64,7 +64,11 @@ static uint16_t forecast_menu_get_num_rows_callback(MenuLayer *menu_layer, uint1
 
 static void forecast_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
   static char s_buff[16];
-  snprintf(s_buff, sizeof(s_buff), "Hour %d", cell_index->row);
+  int hour = cell_index->row % 12;
+  if (hour == 0) {
+    hour = 12;
+  }
+  snprintf(s_buff, sizeof(s_buff), "%d:00 %s", hour, (cell_index->row < 12) ? "AM" : "PM");
   menu_cell_basic_draw(ctx, cell_layer, s_buff, NULL, NULL);
 }
 
