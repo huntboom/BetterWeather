@@ -6,13 +6,17 @@
 
 static Window *s_main_window;
 static Window *s_forecast_window;
+static Window *s_hourly_window;  // New window for each hour
 static MenuLayer *s_menu_layer;
 static MenuLayer *s_forecast_menu_layer;
 
 // Function prototypes
 static void forecast_window_load(Window *window);
 static void forecast_window_unload(Window *window);
+static void hourly_window_load(Window *window);
+static void hourly_window_unload(Window *window);
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data);
+static void forecast_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data);
 
 static uint16_t menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
   return NUM_MENU_SECTIONS;
@@ -111,6 +115,7 @@ static void forecast_window_load(Window *window) {
     .get_num_sections = forecast_menu_get_num_sections_callback,
     .get_num_rows = forecast_menu_get_num_rows_callback,
     .draw_row = forecast_menu_draw_row_callback,
+    .select_click = forecast_menu_select_callback  // Add select click handler
   });
 
   // Bind the menu layer's click config provider to the window for interactivity
@@ -121,6 +126,15 @@ static void forecast_window_load(Window *window) {
 static void forecast_window_unload(Window *window) {
   // Destroy the forecast menu layer
   menu_layer_destroy(s_forecast_menu_layer);
+}
+
+static void hourly_window_load(Window *window) {
+  // Load window contents (if any) here
+  // You can add text layers or other UI elements here for the hourly window
+}
+
+static void hourly_window_unload(Window *window) {
+  // Unload window contents (if any) here
 }
 
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
@@ -135,6 +149,16 @@ static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, v
   }
 }
 
+static void forecast_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
+  // Create a new window for the selected hour
+  s_hourly_window = window_create();
+  window_set_window_handlers(s_hourly_window, (WindowHandlers) {
+    .load = hourly_window_load,
+    .unload = hourly_window_unload,
+  });
+  window_stack_push(s_hourly_window, true);
+}
+
 static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window, (WindowHandlers) {
@@ -146,7 +170,12 @@ static void init() {
 
 static void deinit() {
   window_destroy(s_main_window);
-  window_destroy(s_forecast_window);  // Destroy the forecast window if it exists
+  if (s_forecast_window) {
+    window_destroy(s_forecast_window);
+  }
+  if (s_hourly_window) {
+    window_destroy(s_hourly_window);
+  }
 }
 
 int main(void) {
