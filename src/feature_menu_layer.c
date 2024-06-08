@@ -2,10 +2,12 @@
 
 #define NUM_MENU_SECTIONS 1
 #define NUM_FIRST_MENU_ITEMS 2
+#define NUM_HOURS_IN_DAY 24
 
 static Window *s_main_window;
-static Window *s_forecast_window;  // New window for Today's Forecast
+static Window *s_forecast_window;
 static MenuLayer *s_menu_layer;
+static MenuLayer *s_forecast_menu_layer;
 
 // Function prototypes
 static void forecast_window_load(Window *window);
@@ -52,6 +54,20 @@ static void menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuI
   }
 }
 
+static uint16_t forecast_menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
+  return NUM_MENU_SECTIONS;
+}
+
+static uint16_t forecast_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
+  return NUM_HOURS_IN_DAY;
+}
+
+static void forecast_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
+  static char s_buff[16];
+  snprintf(s_buff, sizeof(s_buff), "Hour %d", cell_index->row);
+  menu_cell_basic_draw(ctx, cell_layer, s_buff, NULL, NULL);
+}
+
 static void main_window_load(Window *window) {
   // Now we prepare to initialize the menu layer
   Layer *window_layer = window_get_root_layer(window);
@@ -80,12 +96,27 @@ static void main_window_unload(Window *window) {
 }
 
 static void forecast_window_load(Window *window) {
-  // Load window contents (if any) here
-  // You can add text layers or other UI elements here for the forecast window
+  // Now we prepare to initialize the forecast menu layer
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+
+  // Create the forecast menu layer
+  s_forecast_menu_layer = menu_layer_create(bounds);
+
+  menu_layer_set_callbacks(s_forecast_menu_layer, NULL, (MenuLayerCallbacks){
+    .get_num_sections = forecast_menu_get_num_sections_callback,
+    .get_num_rows = forecast_menu_get_num_rows_callback,
+    .draw_row = forecast_menu_draw_row_callback,
+  });
+
+  // Bind the menu layer's click config provider to the window for interactivity
+  menu_layer_set_click_config_onto_window(s_forecast_menu_layer, window);
+  layer_add_child(window_layer, menu_layer_get_layer(s_forecast_menu_layer));
 }
 
 static void forecast_window_unload(Window *window) {
-  // Unload window contents (if any) here
+  // Destroy the forecast menu layer
+  menu_layer_destroy(s_forecast_menu_layer);
 }
 
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
