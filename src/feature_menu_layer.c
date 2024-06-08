@@ -3,20 +3,26 @@
 #define NUM_MENU_SECTIONS 1
 #define NUM_FIRST_MENU_ITEMS 2
 #define NUM_HOURS_IN_DAY 24
+#define NUM_DAYS_IN_WEEK 7
 
 static Window *s_main_window;
 static Window *s_forecast_window;
-static Window *s_hourly_window;  // New window for each hour
+static Window *s_hourly_window;
+static Window *s_weekly_window;  // New window for the 7-day forecast
 static MenuLayer *s_menu_layer;
 static MenuLayer *s_forecast_menu_layer;
+static MenuLayer *s_weekly_menu_layer;  // Menu layer for the 7-day forecast
 
 // Function prototypes
 static void forecast_window_load(Window *window);
 static void forecast_window_unload(Window *window);
 static void hourly_window_load(Window *window);
 static void hourly_window_unload(Window *window);
+static void weekly_window_load(Window *window);
+static void weekly_window_unload(Window *window);
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data);
 static void forecast_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data);
+static void weekly_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data);
 
 static uint16_t menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
   return NUM_MENU_SECTIONS;
@@ -74,6 +80,21 @@ static void forecast_menu_draw_row_callback(GContext* ctx, const Layer *cell_lay
   }
   snprintf(s_buff, sizeof(s_buff), "%d:00 %s", hour, (cell_index->row < 12) ? "AM" : "PM");
   menu_cell_basic_draw(ctx, cell_layer, s_buff, NULL, NULL);
+}
+
+static uint16_t weekly_menu_get_num_sections_callback(MenuLayer *menu_layer, void *data) {
+  return NUM_MENU_SECTIONS;
+}
+
+static uint16_t weekly_menu_get_num_rows_callback(MenuLayer *menu_layer, uint16_t section_index, void *data) {
+  return NUM_DAYS_IN_WEEK;
+}
+
+static void weekly_menu_draw_row_callback(GContext* ctx, const Layer *cell_layer, MenuIndex *cell_index, void *data) {
+  static const char *days_of_week[] = {
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+  };
+  menu_cell_basic_draw(ctx, cell_layer, days_of_week[cell_index->row], NULL, NULL);
 }
 
 static void main_window_load(Window *window) {
@@ -137,20 +158,65 @@ static void hourly_window_unload(Window *window) {
   // Unload window contents (if any) here
 }
 
+static void weekly_window_load(Window *window) {
+  // Now we prepare to initialize the weekly menu layer
+  Layer *window_layer = window_get_root_layer(window);
+  GRect bounds = layer_get_frame(window_layer);
+
+  // Create the weekly menu layer
+  s_weekly_menu_layer = menu_layer_create(bounds);
+
+  menu_layer_set_callbacks(s_weekly_menu_layer, NULL, (MenuLayerCallbacks){
+    .get_num_sections = weekly_menu_get_num_sections_callback,
+    .get_num_rows = weekly_menu_get_num_rows_callback,
+    .draw_row = weekly_menu_draw_row_callback,
+    .select_click = weekly_menu_select_callback  // Add select click handler
+  });
+
+  // Bind the menu layer's click config provider to the window for interactivity
+  menu_layer_set_click_config_onto_window(s_weekly_menu_layer, window);
+  layer_add_child(window_layer, menu_layer_get_layer(s_weekly_menu_layer));
+}
+
+static void weekly_window_unload(Window *window) {
+  // Destroy the weekly menu layer
+  menu_layer_destroy(s_weekly_menu_layer);
+}
+
 static void menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
-  if (cell_index->section == 0 && cell_index->row == 0) {
-    // Create the forecast window
-    s_forecast_window = window_create();
-    window_set_window_handlers(s_forecast_window, (WindowHandlers) {
-      .load = forecast_window_load,
-      .unload = forecast_window_unload,
-    });
-    window_stack_push(s_forecast_window, true);
+  if (cell_index->section == 0) {
+    if (cell_index->row == 0) {
+      // Create the forecast window
+      s_forecast_window = window_create();
+      window_set_window_handlers(s_forecast_window, (WindowHandlers) {
+        .load = forecast_window_load,
+        .unload = forecast_window_unload,
+      });
+      window_stack_push(s_forecast_window, true);
+    } else if (cell_index->row == 1) {
+      // Create the weekly forecast window
+      s_weekly_window = window_create();
+      window_set_window_handlers(s_weekly_window, (WindowHandlers) {
+        .load = weekly_window_load,
+        .unload = weekly_window_unload,
+      });
+      window_stack_push(s_weekly_window, true);
+    }
   }
 }
 
 static void forecast_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
   // Create a new window for the selected hour
+  s_hourly_window = window_create();
+  window_set_window_handlers(s_hourly_window, (WindowHandlers) {
+    .load = hourly_window_load,
+    .unload = hourly_window_unload,
+  });
+  window_stack_push(s_hourly_window, true);
+}
+
+static void weekly_menu_select_callback(MenuLayer *menu_layer, MenuIndex *cell_index, void *data) {
+  // Create a new window for the selected day (blank for now)
   s_hourly_window = window_create();
   window_set_window_handlers(s_hourly_window, (WindowHandlers) {
     .load = hourly_window_load,
@@ -175,6 +241,9 @@ static void deinit() {
   }
   if (s_hourly_window) {
     window_destroy(s_hourly_window);
+  }
+  if (s_weekly_window) {
+    window_destroy(s_weekly_window);
   }
 }
 
